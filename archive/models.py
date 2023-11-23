@@ -1,11 +1,20 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 MAXLENGTH = 100
 
 class Circle(models.Model):
+
     englishName = models.CharField(max_length=MAXLENGTH)
     defaultname = models.CharField(max_length=MAXLENGTH)
+    defaultnamelanguage = models.CharField(max_length=MAXLENGTH)
     touhou_db_id = models.IntegerField()
+
+    def __str__(self):
+        if self.englishName != self.defaultname:
+            return f"{self.englishName} ({self.defaultname})"
+        else:
+            return self.englishName
 
 class Album(models.Model):
     englishName = models.CharField(max_length=MAXLENGTH)
