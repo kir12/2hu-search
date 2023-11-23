@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from archive.models import Circle
+from archive.models import Circle, Album, Artist
 from pathlib import Path
 from touhousearch.settings import MUSIC_FILE_EXTENSIONS
 import mutagen, requests
@@ -24,9 +24,22 @@ class Command(BaseCommand):
             "lang":"English"
         }
         resp = requests.get(artistapi, headers=Command.headers, params=data).json()
-        print(resp)
         circle = Circle(touhou_db_id=resp["id"], englishName=resp["name"], defaultname=resp["defaultName"], defaultnamelanguage=resp["defaultNameLanguage"])
         circle.save()
+
+    # TODO: add creation year
+    def add_touhou_db_album(self, albumdict, circles):
+        album = Album(englishName=albumdict["name"], defaultname=albumdict["defaultName"], touhou_db_id=albumdict["id"], touhouarrange=True)
+        album.save()
+        album.circles.add(*circles)
+        album.save()
+        return album
+
+    def add_touhou_db_artist(self, artistid):
+        # run api call for artist
+        # grab key elements, add to circle
+        # save and return
+        pass
 
     def handle(self, *args, **options):
         folder = options["folder"]
@@ -49,6 +62,7 @@ class Command(BaseCommand):
                 "query": mf["album"][0],
                 "nameMatchMode": "Partial",
                 "fields":"Artists,Tracks",
+                "lang": "English"
             }
             albumresp = requests.get(albumapi, headers=Command.headers, params=data).json()["items"]
             # scroll through album hits and look for song title matches
@@ -73,8 +87,23 @@ class Command(BaseCommand):
             new_circles = set(linkedcircles) - set([c.touhou_db_id for c in dbquery])
             for circleid in new_circles:
                 self.add_circle_to_touhou_db(circleid)
+            # retrieve updated db query with all circles added
+            circlequery = Circle.objects.filter(touhou_db_id__in=linkedcircles)
 
-            print(Circle.objects.all())
+            # attempt to add album
+            # TODO: add creation year
+            albumquery = Album.objects.filter(touhou_db_id=int(finalalbum["id"]))
+            if len(albumquery) == 0:
+                album = self.add_touhou_db_album(finalalbum, circlequery)
+            else:
+                album = albumquery[0]
+
+            # grab artists that aren't characters and circles, run a search for new artists, add to db as needed
+            linkedartists = [int(artist["artist"]["id"]) for artist in finalalbum["artists"] if artist["categories"] not in ["Cirle","Subject"] and artist["artist"]["artistType"] not in ["Circle","Character"]]
+            dbquery = Artist.objects.filter(touhou_db_id__in=linkedartists)
+            new_artists = set(linkedartists) - set([a.touhou_db_id for a in dbquery])
+            for artistid in new_artists:
+                self.add_touhou_db_artist(artistid)
 
             exit(0)
 

@@ -16,6 +16,7 @@ class Circle(models.Model):
         else:
             return self.englishName
 
+# TODO: add creation year
 class Album(models.Model):
     englishName = models.CharField(max_length=MAXLENGTH)
     defaultname = models.CharField(max_length=MAXLENGTH)
@@ -23,6 +24,12 @@ class Album(models.Model):
     touhou_db_id = models.IntegerField()
     circles = models.ManyToManyField(Circle)
     touhouarrange = models.BooleanField()
+
+    def __str__(self):
+        if self.englishName != self.defaultname:
+            return f"{self.englishName} ({self.defaultname})"
+        else:
+            return self.englishName
 
 # Create your models here.
 class Song(models.Model):
@@ -47,3 +54,7 @@ class ArtistAlbumRole(models.Model):
 class ArtistSongRole(models.Model):
     artistalbumrole= models.ForeignKey(ArtistAlbumRole, on_delete=models.CASCADE)
     song = models.ForeignKey(Song, on_delete=models.CASCADE)
+
+# files that touhoudb couldn't grab ahold of and need to be manually visited
+class ManualInterventionRequired(models.Model):
+    musicFile = models.FileField()  # <-- the entire reason for this project...
