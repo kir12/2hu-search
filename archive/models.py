@@ -42,13 +42,24 @@ class Song(models.Model):
 class Artist(models.Model):
     englishName = models.CharField(max_length=MAXLENGTH)
     defaultname = models.CharField(max_length=MAXLENGTH)
+    defaultnamelanguage = models.CharField(max_length=MAXLENGTH)
     touhou_db_id = models.IntegerField()
+
+    def __str__(self):
+        if self.englishName != self.defaultname:
+            return f"{self.englishName} ({self.defaultname})"
+        else:
+            return self.englishName
+
 
 # notate artist roles across an entire album
 class ArtistAlbumRole(models.Model):
     artist = models.ForeignKey(Artist, on_delete=models.CASCADE)
     role = models.CharField(max_length=MAXLENGTH)
     album = models.ForeignKey(Album, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.role
 
 # notate artist roles per-song
 class ArtistSongRole(models.Model):

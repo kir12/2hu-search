@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from archive.models import Circle, Album, Artist
+from archive.models import Circle, Album, Artist, ArtistAlbumRole
 from pathlib import Path
 from touhousearch.settings import MUSIC_FILE_EXTENSIONS
 import mutagen, requests
@@ -35,11 +35,20 @@ class Command(BaseCommand):
         album.save()
         return album
 
-    def add_touhou_db_artist(self, artistid):
+    def add_touhou_db_artist(self, artistid, album):
         # run api call for artist
-        # grab key elements, add to circle
-        # save and return
-        pass
+        artistapi = f"{Command.url}/artists/{artistid}"
+        data = {
+            "fields":"AdditionalNames",
+            "lang":"English"
+        }
+        resp = requests.get(artistapi, headers=Command.headers, params=data).json()
+        # grab key elements and save
+        artist = Artist(touhou_db_id=resp["id"], englishName=resp["name"], defaultname=resp["defaultName"], defaultnamelanguage=resp["defaultNameLanguage"])
+        artist.save()
+        # save artist role for an album
+        artistalbumrole = ArtistAlbumRole(artist=artist, role=resp["artistType"], album = album)
+        artistalbumrole.save()
 
     def handle(self, *args, **options):
         folder = options["folder"]
@@ -103,7 +112,9 @@ class Command(BaseCommand):
             dbquery = Artist.objects.filter(touhou_db_id__in=linkedartists)
             new_artists = set(linkedartists) - set([a.touhou_db_id for a in dbquery])
             for artistid in new_artists:
-                self.add_touhou_db_artist(artistid)
+                self.add_touhou_db_artist(artistid, album)
+
+            print(Artist.objects.all())
 
             exit(0)
 
