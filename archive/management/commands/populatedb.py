@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from archive.models import Circle, Album, Artist, ArtistAlbumRole
+from archive.models import *
 from pathlib import Path
 from touhousearch.settings import MUSIC_FILE_EXTENSIONS
 import mutagen, requests
@@ -49,6 +49,19 @@ class Command(BaseCommand):
         # save artist role for an album
         artistalbumrole = ArtistAlbumRole(artist=artist, role=resp["artistType"], album = album)
         artistalbumrole.save()
+
+    def add_touhou_db_song(self, songid, songpath):
+        songapi = f"{Command.url}/songs/{songid}"
+        data = {
+            "fields":"AdditionalNames,Artists",
+            "lang":"English",
+        }
+        resp = requests.get(songapi, headers=Command.headers, params=data).json()
+        print(resp)
+        song = Song(touhou_db_id=resp["id"], englishName=resp["name"], defaultname=resp["defaultName"], defaultNameLanguage=resp["defaultNameLanguage"], musicFile=songpath)
+        song.save()
+        exit(0)
+ 
 
     def handle(self, *args, **options):
         folder = options["folder"]
@@ -114,9 +127,12 @@ class Command(BaseCommand):
             for artistid in new_artists:
                 self.add_touhou_db_artist(artistid, album)
 
-            print(Artist.objects.all())
-
-            exit(0)
+            # do song search in db
+            songquery = Song.objects.filter(touhou_db_id=songid)
+            if len(songquery) == 0:
+                song = self.add_touhou_db_song(songid, f)
+            else:
+                song = song[0]
 
             # # get all matching songs
             # data = {

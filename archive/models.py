@@ -35,9 +35,10 @@ class Album(models.Model):
 class Song(models.Model):
     englishName = models.CharField(max_length=MAXLENGTH)
     defaultname = models.CharField(max_length=MAXLENGTH)
+    defaultnamelanguage = models.CharField(max_length=MAXLENGTH)
     touhou_db_id = models.IntegerField()
     albums = models.ManyToManyField(Album)
-    musicFile = models.FileField()  # <-- the entire reason for this project...
+    musicFile = models.FilePathField()  # <-- the entire reason for this project...
 
 class Artist(models.Model):
     englishName = models.CharField(max_length=MAXLENGTH)
