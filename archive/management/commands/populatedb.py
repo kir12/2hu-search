@@ -50,7 +50,7 @@ class Command(BaseCommand):
         artistalbumrole = ArtistAlbumRole(artist=artist, role=resp["artistType"], album = album)
         artistalbumrole.save()
 
-    def add_touhou_db_song(self, songid, songpath):
+    def add_touhou_db_song(self, songid, songpath, album):
         songapi = f"{Command.url}/songs/{songid}"
         data = {
             "fields":"AdditionalNames,Artists",
@@ -59,8 +59,6 @@ class Command(BaseCommand):
         resp = requests.get(songapi, headers=Command.headers, params=data).json()
         print(resp)
         song = Song(touhou_db_id=resp["id"], englishName=resp["name"], defaultname=resp["defaultName"], defaultNameLanguage=resp["defaultNameLanguage"], musicFile=songpath)
-        song.save()
-        exit(0)
  
 
     def handle(self, *args, **options):
@@ -128,11 +126,14 @@ class Command(BaseCommand):
                 self.add_touhou_db_artist(artistid, album)
 
             # do song search in db
+            # TODO: move filtering into specific methods
             songquery = Song.objects.filter(touhou_db_id=songid)
             if len(songquery) == 0:
                 song = self.add_touhou_db_song(songid, f)
             else:
                 song = song[0]
+
+            song.albums.add(album)
 
             # # get all matching songs
             # data = {
