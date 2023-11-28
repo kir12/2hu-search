@@ -51,15 +51,32 @@ class Command(BaseCommand):
         artistalbumrole.save()
 
     def add_touhou_db_song(self, songid, songpath, album):
-        songapi = f"{Command.url}/songs/{songid}"
-        data = {
-            "fields":"AdditionalNames,Artists",
-            "lang":"English",
-        }
-        resp = requests.get(songapi, headers=Command.headers, params=data).json()
-        print(resp)
-        song = Song(touhou_db_id=resp["id"], englishName=resp["name"], defaultname=resp["defaultName"], defaultNameLanguage=resp["defaultNameLanguage"], musicFile=songpath)
- 
+        songquery = Song.objects.filter(touhou_db_id=songid)
+        if len(songquery) == 0:
+            songapi = f"{Command.url}/songs/{songid}"
+            data = {
+                "fields":"AdditionalNames,Artists",
+                "lang":"English",
+            }
+            resp = requests.get(songapi, headers=Command.headers, params=data).json()
+            print(resp)
+            song = Song(touhou_db_id=resp["id"], englishName=resp["name"], defaultname=resp["defaultName"], defaultNameLanguage=resp["defaultNameLanguage"], musicFile=songpath)
+
+            # do search on artists and add new artists as needed
+            song_artist_ids = [a["artist"]["id"] for a in resp["artists"]]
+            artist_query = Artist.objects.filter(touhou_db_id__in=song_artist_ids)
+            new_artists = set(song_artist_ids) - set([a.touhou_db_id for a in artist_query])
+            for artistid in new_artists:
+                self.add_touhou_db_artist(artistid, album)
+        else:
+            song = songquery[0]
+
+        # TODO: check for new artist album roles and add as needed
+        # TODO: add new artist song roles
+
+        song.albums.add(album)
+        song.save()
+        return song
 
     def handle(self, *args, **options):
         folder = options["folder"]
@@ -126,14 +143,7 @@ class Command(BaseCommand):
                 self.add_touhou_db_artist(artistid, album)
 
             # do song search in db
-            # TODO: move filtering into specific methods
-            songquery = Song.objects.filter(touhou_db_id=songid)
-            if len(songquery) == 0:
-                song = self.add_touhou_db_song(songid, f)
-            else:
-                song = song[0]
-
-            song.albums.add(album)
+            song = self.add_touhou_db_song(songid, f, album)
 
             # # get all matching songs
             # data = {
